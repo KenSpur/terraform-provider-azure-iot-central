@@ -7,3 +7,5 @@ terraform {
 }
 
 provider "iotcentral" {}
+
+data "iotcentral_devices" "example" {}

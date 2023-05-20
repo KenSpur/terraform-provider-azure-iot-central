@@ -1,2 +1,1 @@
-# Terraform Provider Azure Iot Central
-
+# 🛰️ Terraform Provider Azure Iot Central

@@ -3,16 +3,21 @@ package iotcentral
 import (
 	"context"
 
+	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/boolplanmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	iotcentral "github.com/kenspur/azure-iot-central-client-go"
 )
 
 // Ensure the implementation satisfies the expected interfaces.
 var (
-	_ resource.Resource              = &deviceResource{}
-	_ resource.ResourceWithConfigure = &deviceResource{}
+	_ resource.Resource                = &deviceResource{}
+	_ resource.ResourceWithConfigure   = &deviceResource{}
+	_ resource.ResourceWithImportState = &deviceResource{}
 )
 
 // NewDeviceResource is a helper function to simplify the provider implementation.
@@ -34,7 +39,7 @@ type deviceResourceModel struct {
 	Simulated   types.Bool   `tfsdk:"simulated"`
 	Provisioned types.Bool   `tfsdk:"provisioned"`
 	Enabled     types.Bool   `tfsdk:"enabled"`
-	//Organizations []types.String `tfsdk:"organizations"`
+	//Organizations types.SetType `tfsdk:"organizations"`
 }
 
 // Metadata returns the resource type name.
@@ -48,6 +53,9 @@ func (r *deviceResource) Schema(_ context.Context, _ resource.SchemaRequest, res
 		Attributes: map[string]schema.Attribute{
 			"id": schema.StringAttribute{
 				Required: true,
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.RequiresReplace(),
+				},
 			},
 			"etag": schema.StringAttribute{
 				Optional: true,
@@ -55,21 +63,36 @@ func (r *deviceResource) Schema(_ context.Context, _ resource.SchemaRequest, res
 			},
 			"display_name": schema.StringAttribute{
 				Required: true,
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"template": schema.StringAttribute{
 				Optional: true,
 				Computed: true,
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"simulated": schema.BoolAttribute{
 				Optional: true,
 				Computed: true,
+				PlanModifiers: []planmodifier.Bool{
+					boolplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"provisioned": schema.BoolAttribute{
 				Computed: true,
+				PlanModifiers: []planmodifier.Bool{
+					boolplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"enabled": schema.BoolAttribute{
 				Optional: true,
 				Computed: true,
+				PlanModifiers: []planmodifier.Bool{
+					boolplanmodifier.UseStateForUnknown(),
+				},
 			},
 			// "organizations": schema.SetAttribute{
 			// 	Optional:    true,
@@ -185,8 +208,74 @@ func (r *deviceResource) Read(ctx context.Context, req resource.ReadRequest, res
 
 // Update updates the resource and sets the updated Terraform state on success.
 func (r *deviceResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
+	// Retrieve values from plan
+	var plan deviceResourceModel
+	diags := req.Plan.Get(ctx, &plan)
+	resp.Diagnostics.Append(diags...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	// Generate API request body from plan
+	var deviceID = plan.ID.ValueString()
+	var deviceRequest = iotcentral.DeviceRequest{
+		DisplayName: plan.DisplayName.ValueString(),
+		Template:    plan.Template.ValueString(),
+		Simulated:   plan.Simulated.ValueBool(),
+		Enabled:     plan.Enabled.ValueBool(),
+	}
+
+	// Update existing device
+	device, err := r.client.UpdateDevice(deviceID, deviceRequest)
+	if err != nil {
+		resp.Diagnostics.AddError(
+			"Error Updating IotCentraL Device",
+			"Could not update device, unexpected error: "+err.Error(),
+		)
+		return
+	}
+
+	// Update resource state with updated items and timestamp
+	plan.ID = types.StringValue(device.ID)
+	plan.Etag = types.StringValue(device.Etag)
+	plan.DisplayName = types.StringValue(device.DisplayName)
+	plan.Template = types.StringValue(device.Template)
+	plan.Simulated = types.BoolValue(device.Simulated)
+	plan.Provisioned = types.BoolValue(device.Provisioned)
+	plan.Enabled = types.BoolValue(device.Enabled)
+	// for _, organization := range device.Organizations {
+	// 	plan.Organizations = append(plan.Organizations, types.StringValue(organization))
+	// }
+
+	diags = resp.State.Set(ctx, plan)
+	resp.Diagnostics.Append(diags...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
 }
 
 // Delete deletes the resource and removes the Terraform state on success.
 func (r *deviceResource) Delete(ctx context.Context, req resource.DeleteRequest, resp *resource.DeleteResponse) {
+	// Retrieve values from state
+	var state deviceResourceModel
+	diags := req.State.Get(ctx, &state)
+	resp.Diagnostics.Append(diags...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	// Delete existing order
+	err := r.client.DeleteDevice(state.ID.ValueString())
+	if err != nil {
+		resp.Diagnostics.AddError(
+			"Error Deleting IotCentral Device",
+			"Could not delete device, unexpected error: "+err.Error(),
+		)
+		return
+	}
+}
+
+func (r *deviceResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
+	// Retrieve import ID and save to id attribute
+	resource.ImportStatePassthroughID(ctx, path.Root("id"), req, resp)
 }

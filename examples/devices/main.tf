@@ -9,8 +9,8 @@ terraform {
 provider "iotcentral" {}
 
 resource "iotcentral_device" "example" {
-  id = "example"
-  display_name = "example"
+  id = "example_2"
+  display_name = "example_2"
 }
 
 data "iotcentral_devices" "example" {}

@@ -28,18 +28,19 @@ type devicesDataSource struct {
 // devicesDataSourceModel maps the data source schema data.
 type devicesDataSourceModel struct {
 	Devices []deviceModel `tfsdk:"devices"`
+	ID      types.String  `tfsdk:"id"`
 }
 
 // deviceModel maps device schema data.
 type deviceModel struct {
-	ID            types.String   `tfsdk:"id"`
-	Etag          types.String   `tfsdk:"etag"`
-	DisplayName   types.String   `tfsdk:"display_name"`
-	Template      types.String   `tfsdk:"template"`
-	Simulated     types.Bool     `tfsdk:"simulated"`
-	Provisioned   types.Bool     `tfsdk:"provisioned"`
-	Enabled       types.Bool     `tfsdk:"enabled"`
-	Organizations []types.String `tfsdk:"organizations"`
+	ID          types.String `tfsdk:"id"`
+	Etag        types.String `tfsdk:"etag"`
+	DisplayName types.String `tfsdk:"display_name"`
+	Template    types.String `tfsdk:"template"`
+	Simulated   types.Bool   `tfsdk:"simulated"`
+	Provisioned types.Bool   `tfsdk:"provisioned"`
+	Enabled     types.Bool   `tfsdk:"enabled"`
+	//Organizations []types.String `tfsdk:"organizations"`
 }
 
 // Metadata returns the data source type name.
@@ -51,6 +52,9 @@ func (d *devicesDataSource) Metadata(_ context.Context, req datasource.MetadataR
 func (d *devicesDataSource) Schema(_ context.Context, _ datasource.SchemaRequest, resp *datasource.SchemaResponse) {
 	resp.Schema = schema.Schema{
 		Attributes: map[string]schema.Attribute{
+			"id": schema.StringAttribute{
+				Computed: true,
+			},
 			"devices": schema.ListNestedAttribute{
 				Computed: true,
 				NestedObject: schema.NestedAttributeObject{
@@ -76,10 +80,10 @@ func (d *devicesDataSource) Schema(_ context.Context, _ datasource.SchemaRequest
 						"enabled": schema.BoolAttribute{
 							Computed: true,
 						},
-						"organizations": schema.SetAttribute{
-							Computed:    true,
-							ElementType: types.StringType,
-						},
+						// "organizations": schema.SetAttribute{
+						// 	Computed:    true,
+						// 	ElementType: types.StringType,
+						// },
 					},
 				},
 			},
@@ -120,12 +124,14 @@ func (d *devicesDataSource) Read(ctx context.Context, req datasource.ReadRequest
 			Enabled:     types.BoolValue(device.Enabled),
 		}
 
-		for _, organization := range device.Organizations {
-			deviceState.Organizations = append(deviceState.Organizations, types.StringValue(organization))
-		}
+		// for _, organization := range device.Organizations {
+		// 	deviceState.Organizations = append(deviceState.Organizations, types.StringValue(organization))
+		// }
 
 		state.Devices = append(state.Devices, deviceState)
 	}
+
+	state.ID = types.StringValue("placeholder")
 
 	// Set state
 	diags := resp.State.Set(ctx, &state)

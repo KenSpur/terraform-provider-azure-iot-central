@@ -39,4 +39,6 @@ override.tf.json
 terraform.rc
 terraform
 
+# Ignore local tools
 init.sh
+main.tf

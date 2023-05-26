@@ -53,34 +53,43 @@ func (d *devicesDataSource) Schema(_ context.Context, _ datasource.SchemaRequest
 	resp.Schema = schema.Schema{
 		Attributes: map[string]schema.Attribute{
 			"id": schema.StringAttribute{
-				Computed: true,
+				Description: "Placeholder identifier attribute.",
+				Computed:    true,
 			},
 			"devices": schema.ListNestedAttribute{
 				Computed: true,
 				NestedObject: schema.NestedAttributeObject{
 					Attributes: map[string]schema.Attribute{
 						"id": schema.StringAttribute{
-							Computed: true,
+							Description: "Unique ID of the device.",
+							Computed:    true,
 						},
 						"etag": schema.StringAttribute{
-							Computed: true,
+							Description: "ETag used to prevent conflict in device updates.",
+							Computed:    true,
 						},
 						"display_name": schema.StringAttribute{
-							Computed: true,
+							Description: "Display name of the device.",
+							Computed:    true,
 						},
 						"template": schema.StringAttribute{
-							Computed: true,
+							Description: "The device template definition for the device.",
+							Computed:    true,
 						},
 						"simulated": schema.BoolAttribute{
-							Computed: true,
+							Description: "Whether the device is simulated.",
+							Computed:    true,
 						},
 						"provisioned": schema.BoolAttribute{
-							Computed: true,
+							Description: "Whether resources have been allocated for the device.",
+							Computed:    true,
 						},
 						"enabled": schema.BoolAttribute{
-							Computed: true,
+							Description: "List of organization IDs that the device is a part of, only one organization is supported today, multiple organizations will be supported soon.",
+							Computed:    true,
 						},
 						// "organizations": schema.SetAttribute{
+						// 	Description: "List of organization IDs that the device is a part of, only one organization is supported today, multiple organizations will be supported soon.",
 						// 	Computed:    true,
 						// 	ElementType: types.StringType,
 						// },

@@ -52,49 +52,57 @@ func (r *deviceResource) Schema(_ context.Context, _ resource.SchemaRequest, res
 	resp.Schema = schema.Schema{
 		Attributes: map[string]schema.Attribute{
 			"id": schema.StringAttribute{
-				Required: true,
+				Description: "Unique ID of the device.",
+				Required:    true,
 				PlanModifiers: []planmodifier.String{
 					stringplanmodifier.RequiresReplace(),
 				},
 			},
 			"etag": schema.StringAttribute{
-				Optional: true,
-				Computed: true,
+				Description: "ETag used to prevent conflict in device updates.",
+				Optional:    true,
+				Computed:    true,
 			},
 			"display_name": schema.StringAttribute{
-				Required: true,
+				Description: "Display name of the device.",
+				Required:    true,
 				PlanModifiers: []planmodifier.String{
 					stringplanmodifier.UseStateForUnknown(),
 				},
 			},
 			"template": schema.StringAttribute{
-				Optional: true,
-				Computed: true,
+				Description: "The device template definition for the device.",
+				Optional:    true,
+				Computed:    true,
 				PlanModifiers: []planmodifier.String{
 					stringplanmodifier.UseStateForUnknown(),
 				},
 			},
 			"simulated": schema.BoolAttribute{
-				Optional: true,
-				Computed: true,
+				Description: "Whether the device is simulated.",
+				Optional:    true,
+				Computed:    true,
 				PlanModifiers: []planmodifier.Bool{
 					boolplanmodifier.UseStateForUnknown(),
 				},
 			},
 			"provisioned": schema.BoolAttribute{
-				Computed: true,
+				Description: "Whether resources have been allocated for the device.",
+				Computed:    true,
 				PlanModifiers: []planmodifier.Bool{
 					boolplanmodifier.UseStateForUnknown(),
 				},
 			},
 			"enabled": schema.BoolAttribute{
-				Optional: true,
-				Computed: true,
+				Description: "List of organization IDs that the device is a part of, only one organization is supported today, multiple organizations will be supported soon.",
+				Optional:    true,
+				Computed:    true,
 				PlanModifiers: []planmodifier.Bool{
 					boolplanmodifier.UseStateForUnknown(),
 				},
 			},
 			// "organizations": schema.SetAttribute{
+			// 	Description: "List of organization IDs that the device is a part of, only one organization is supported today, multiple organizations will be supported soon.",
 			// 	Optional:    true,
 			// 	Computed:    true,
 			// 	ElementType: types.StringType,

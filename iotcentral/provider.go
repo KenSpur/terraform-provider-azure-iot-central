@@ -4,6 +4,8 @@ import (
 	"context"
 	"os"
 
+	"github.com/Azure/azure-sdk-for-go/sdk/azcore/policy"
+	"github.com/Azure/azure-sdk-for-go/sdk/azidentity"
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/provider"
@@ -29,8 +31,7 @@ type iotcentralProvider struct{}
 
 // iotcentralProviderModel maps provider schema data to a Go type.
 type iotcentralProviderModel struct {
-	Host  types.String `tfsdk:"host"`
-	Token types.String `tfsdk:"token"`
+	Host types.String `tfsdk:"host"`
 }
 
 // Metadata returns the provider type name.
@@ -45,11 +46,6 @@ func (p *iotcentralProvider) Schema(_ context.Context, _ provider.SchemaRequest,
 			"host": schema.StringAttribute{
 				Description: "IoT Central Application URL. May also be provided via IOTCENTRAL_HOST environment variable.",
 				Optional:    true,
-			},
-			"token": schema.StringAttribute{
-				Description: "Access Token for resource 'https://apps.azureiotcentral.com'. May also be provided via IOTCENTRAL_TOKEN environment variable.",
-				Optional:    true,
-				Sensitive:   true,
 			},
 		},
 	}
@@ -79,15 +75,6 @@ func (p *iotcentralProvider) Configure(ctx context.Context, req provider.Configu
 		)
 	}
 
-	if config.Token.IsUnknown() {
-		resp.Diagnostics.AddAttributeError(
-			path.Root("username"),
-			"Unknown IotCentral API Token",
-			"The provider cannot create the IotCentral API client as there is an unknown configuration value for the IotCentral API token. "+
-				"Either target apply the source of the value first, set the value statically in the configuration, or use the IOTCENTRAL_TOKEN environment variable.",
-		)
-	}
-
 	if resp.Diagnostics.HasError() {
 		return
 	}
@@ -96,14 +83,9 @@ func (p *iotcentralProvider) Configure(ctx context.Context, req provider.Configu
 	// with Terraform configuration value if set.
 
 	host := os.Getenv("IOTCENTRAL_HOST")
-	token := os.Getenv("IOTCENTRAL_TOKEN")
 
 	if !config.Host.IsNull() {
 		host = config.Host.ValueString()
-	}
-
-	if !config.Token.IsNull() {
-		token = config.Token.ValueString()
 	}
 
 	// If any of the expected configurations are missing, return
@@ -119,27 +101,45 @@ func (p *iotcentralProvider) Configure(ctx context.Context, req provider.Configu
 		)
 	}
 
-	if token == "" {
-		resp.Diagnostics.AddAttributeError(
-			path.Root("token"),
-			"Missing IotCentral API Token",
-			"The provider cannot create the IotCentral API client as there is a missing or empty value for the IotCentral API token. "+
-				"Set the token value in the configuration or use the IOTCENTRAL_TOKEN environment variable. "+
-				"If either is already set, ensure the value is not empty.",
-		)
-	}
-
 	if resp.Diagnostics.HasError() {
 		return
 	}
 
 	ctx = tflog.SetField(ctx, "iotcentral_host", host)
-	ctx = tflog.MaskFieldValuesWithFieldKeys(ctx, "iotcentral_token", token)
+
+	// Create default Azure credential
+	cred, err := azidentity.NewDefaultAzureCredential(nil)
+	if err != nil {
+		resp.Diagnostics.AddError(
+			"Unable to create default Azure credential",
+			"An unexpected error occurred when creating default Azure credential. "+
+				"If the error is not clear, please contact the provider developers.\n\n"+
+				"Azure identity Client Error: "+err.Error(),
+		)
+		return
+	}
+
+	// Prepare the token request options
+	policy := policy.TokenRequestOptions{
+		Scopes: []string{"https://apps.azureiotcentral.com/.default"},
+	}
+
+	// Get the access token
+	token, err := cred.GetToken(ctx, policy)
+	if err != nil {
+		resp.Diagnostics.AddError(
+			"Unable to get Azure access token",
+			"An unexpected error occurred when getting the Azure access token. "+
+				"If the error is not clear, please contact the provider developers.\n\n"+
+				"Azure identity Client Error: "+err.Error(),
+		)
+		return
+	}
 
 	tflog.Debug(ctx, "Creating IotCentral client")
 
 	// Create a new IotCentral client using the configuration values
-	client, err := iotcentral.NewClient(&host, &token)
+	client, err := iotcentral.NewClient(&host, &token.Token)
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Unable to Create IotCentral API Client",

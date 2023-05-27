@@ -1,5 +1,4 @@
-# Configuration-based authentication
+# Configuration
 provider "iotcentral" {
     host = "https://<iot central subdomain>.azureiotcentral.com"
-    token = "<access token>"
 }

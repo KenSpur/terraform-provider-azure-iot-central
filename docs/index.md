@@ -13,10 +13,9 @@ description: |-
 ## Example Usage
 
 ```terraform
-# Configuration-based authentication
+# Configuration
 provider "iotcentral" {
     host = "https://<iot central subdomain>.azureiotcentral.com"
-    token = "<access token>"
 }
 ```
 
@@ -26,4 +25,3 @@ provider "iotcentral" {
 ### Optional
 
 - `host` (String) IoT Central Application URL. May also be provided via IOTCENTRAL_HOST environment variable.
-- `token` (String, Sensitive) Access Token for resource 'https://apps.azureiotcentral.com'. May also be provided via IOTCENTRAL_TOKEN environment variable.

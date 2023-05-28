@@ -32,14 +32,14 @@ type deviceResource struct {
 
 // deviceResourceModel maps device schema data.
 type deviceResourceModel struct {
-	ID          types.String `tfsdk:"id"`
-	Etag        types.String `tfsdk:"etag"`
-	DisplayName types.String `tfsdk:"display_name"`
-	Template    types.String `tfsdk:"template"`
-	Simulated   types.Bool   `tfsdk:"simulated"`
-	Provisioned types.Bool   `tfsdk:"provisioned"`
-	Enabled     types.Bool   `tfsdk:"enabled"`
-	//Organizations types.SetType `tfsdk:"organizations"`
+	ID            types.String `tfsdk:"id"`
+	Etag          types.String `tfsdk:"etag"`
+	DisplayName   types.String `tfsdk:"display_name"`
+	Template      types.String `tfsdk:"template"`
+	Simulated     types.Bool   `tfsdk:"simulated"`
+	Provisioned   types.Bool   `tfsdk:"provisioned"`
+	Enabled       types.Bool   `tfsdk:"enabled"`
+	Organizations types.List   `tfsdk:"organizations"`
 }
 
 // Metadata returns the resource type name.
@@ -101,12 +101,12 @@ func (r *deviceResource) Schema(_ context.Context, _ resource.SchemaRequest, res
 					boolplanmodifier.UseStateForUnknown(),
 				},
 			},
-			// "organizations": schema.SetAttribute{
-			// 	Description: "List of organization IDs that the device is a part of, only one organization is supported today, multiple organizations will be supported soon.",
-			// 	Optional:    true,
-			// 	Computed:    true,
-			// 	ElementType: types.StringType,
-			// },
+			"organizations": schema.ListAttribute{
+				Description: "List of organization IDs that the device is a part of, only one organization is supported today, multiple organizations will be supported soon.",
+				Optional:    true,
+				Computed:    true,
+				ElementType: types.StringType,
+			},
 		},
 	}
 }
@@ -139,9 +139,9 @@ func (r *deviceResource) Create(ctx context.Context, req resource.CreateRequest,
 		Enabled:     plan.Enabled.ValueBool(),
 	}
 
-	// for _, organization := range plan.Organizations {
-	// 	deviceRequest.Organizations = append(deviceRequest.Organizations, organization.ValueString())
-	// }
+	for _, organization := range plan.Organizations.Elements() {
+		deviceRequest.Organizations = append(deviceRequest.Organizations, organization.(types.String).ValueString())
+	}
 
 	// Create new device
 	device, err := r.client.CreateDevice(deviceID, deviceRequest)
@@ -161,9 +161,9 @@ func (r *deviceResource) Create(ctx context.Context, req resource.CreateRequest,
 	plan.Simulated = types.BoolValue(device.Simulated)
 	plan.Provisioned = types.BoolValue(device.Provisioned)
 	plan.Enabled = types.BoolValue(device.Enabled)
-	// for _, organization := range device.Organizations {
-	// 	plan.Organizations = append(plan.Organizations, types.StringValue(organization))
-	// }
+
+	plan.Organizations, diags = types.ListValueFrom(ctx, types.StringType, device.Organizations)
+	resp.Diagnostics.Append(diags...)
 
 	// Set state to fully populated data
 	diags = resp.State.Set(ctx, plan)
@@ -183,8 +183,8 @@ func (r *deviceResource) Read(ctx context.Context, req resource.ReadRequest, res
 		return
 	}
 
-	// Get refreshed order value from HashiCups
-	order, err := r.client.GetDevice(state.ID.ValueString())
+	// Get refreshed device value from IotCentral
+	device, err := r.client.GetDevice(state.ID.ValueString())
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Error Reading IotCentral Device",
@@ -194,17 +194,16 @@ func (r *deviceResource) Read(ctx context.Context, req resource.ReadRequest, res
 	}
 
 	// Overwrite items with refreshed state
-	state.ID = types.StringValue(order.ID)
-	state.Etag = types.StringValue(order.Etag)
-	state.DisplayName = types.StringValue(order.DisplayName)
-	state.Template = types.StringValue(order.Template)
-	state.Simulated = types.BoolValue(order.Simulated)
-	state.Provisioned = types.BoolValue(order.Provisioned)
-	state.Enabled = types.BoolValue(order.Enabled)
-	// state.Organizations = []types.String{}
-	// for _, organization := range order.Organizations {
-	// 	state.Organizations = append(state.Organizations, types.StringValue(organization))
-	// }
+	state.ID = types.StringValue(device.ID)
+	state.Etag = types.StringValue(device.Etag)
+	state.DisplayName = types.StringValue(device.DisplayName)
+	state.Template = types.StringValue(device.Template)
+	state.Simulated = types.BoolValue(device.Simulated)
+	state.Provisioned = types.BoolValue(device.Provisioned)
+	state.Enabled = types.BoolValue(device.Enabled)
+
+	state.Organizations, diags = types.ListValueFrom(ctx, types.StringType, device.Organizations)
+	resp.Diagnostics.Append(diags...)
 
 	// Set refreshed state
 	diags = resp.State.Set(ctx, &state)
@@ -251,9 +250,9 @@ func (r *deviceResource) Update(ctx context.Context, req resource.UpdateRequest,
 	plan.Simulated = types.BoolValue(device.Simulated)
 	plan.Provisioned = types.BoolValue(device.Provisioned)
 	plan.Enabled = types.BoolValue(device.Enabled)
-	// for _, organization := range device.Organizations {
-	// 	plan.Organizations = append(plan.Organizations, types.StringValue(organization))
-	// }
+
+	plan.Organizations, diags = types.ListValueFrom(ctx, types.StringType, device.Organizations)
+	resp.Diagnostics.Append(diags...)
 
 	diags = resp.State.Set(ctx, plan)
 	resp.Diagnostics.Append(diags...)

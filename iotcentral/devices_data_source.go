@@ -33,14 +33,14 @@ type devicesDataSourceModel struct {
 
 // deviceModel maps device schema data.
 type deviceModel struct {
-	ID          types.String `tfsdk:"id"`
-	Etag        types.String `tfsdk:"etag"`
-	DisplayName types.String `tfsdk:"display_name"`
-	Template    types.String `tfsdk:"template"`
-	Simulated   types.Bool   `tfsdk:"simulated"`
-	Provisioned types.Bool   `tfsdk:"provisioned"`
-	Enabled     types.Bool   `tfsdk:"enabled"`
-	//Organizations []types.String `tfsdk:"organizations"`
+	ID            types.String `tfsdk:"id"`
+	Etag          types.String `tfsdk:"etag"`
+	DisplayName   types.String `tfsdk:"display_name"`
+	Template      types.String `tfsdk:"template"`
+	Simulated     types.Bool   `tfsdk:"simulated"`
+	Provisioned   types.Bool   `tfsdk:"provisioned"`
+	Enabled       types.Bool   `tfsdk:"enabled"`
+	Organizations types.List   `tfsdk:"organizations"`
 }
 
 // Metadata returns the data source type name.
@@ -88,11 +88,11 @@ func (d *devicesDataSource) Schema(_ context.Context, _ datasource.SchemaRequest
 							Description: "List of organization IDs that the device is a part of, only one organization is supported today, multiple organizations will be supported soon.",
 							Computed:    true,
 						},
-						// "organizations": schema.SetAttribute{
-						// 	Description: "List of organization IDs that the device is a part of, only one organization is supported today, multiple organizations will be supported soon.",
-						// 	Computed:    true,
-						// 	ElementType: types.StringType,
-						// },
+						"organizations": schema.ListAttribute{
+							Description: "List of organization IDs that the device is a part of, only one organization is supported today, multiple organizations will be supported soon.",
+							Computed:    true,
+							ElementType: types.StringType,
+						},
 					},
 				},
 			},
@@ -133,9 +133,10 @@ func (d *devicesDataSource) Read(ctx context.Context, req datasource.ReadRequest
 			Enabled:     types.BoolValue(device.Enabled),
 		}
 
-		// for _, organization := range device.Organizations {
-		// 	deviceState.Organizations = append(deviceState.Organizations, types.StringValue(organization))
-		// }
+		organizations, diags := types.ListValueFrom(ctx, types.StringType, device.Organizations)
+		deviceState.Organizations = organizations
+
+		resp.Diagnostics.Append(diags...)
 
 		state.Devices = append(state.Devices, deviceState)
 	}

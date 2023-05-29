@@ -160,15 +160,12 @@ func (p *iotcentralProvider) Configure(ctx context.Context, req provider.Configu
 
 // DataSources defines the data sources implemented in the provider.
 func (p *iotcentralProvider) DataSources(_ context.Context) []func() datasource.DataSource {
-	return []func() datasource.DataSource{
-		NewDevicesDataSource,
-	}
+	return []func() datasource.DataSource{}
 }
 
 // Resources defines the resources implemented in the provider.
 func (p *iotcentralProvider) Resources(_ context.Context) []func() resource.Resource {
 	return []func() resource.Resource{
-		NewDeviceResource,
 		NewOrganizationResource,
 		NewUserResource,
 	}

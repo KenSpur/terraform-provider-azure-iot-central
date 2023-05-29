@@ -1,0 +1,1 @@
+terraform import iotcentral_ad_group_user.example Id

@@ -1,4 +1,3 @@
-# Manage example organizations.
 resource "iotcentral_organization" "example" {
   id = "example"
   display_name = "Example"

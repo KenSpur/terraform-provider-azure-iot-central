@@ -168,5 +168,7 @@ func (p *iotcentralProvider) Resources(_ context.Context) []func() resource.Reso
 	return []func() resource.Resource{
 		NewOrganizationResource,
 		NewUserResource,
+		NewADGroupUserResource,
+		NewServicePrincipalUserResource,
 	}
 }

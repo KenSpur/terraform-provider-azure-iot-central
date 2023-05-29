@@ -13,7 +13,6 @@ description: |-
 ## Example Usage
 
 ```terraform
-# Manage example organizations.
 resource "iotcentral_organization" "example" {
   id = "example"
   display_name = "Example"
@@ -43,6 +42,5 @@ resource "iotcentral_organization" "example_child" {
 Import is supported using the following syntax:
 
 ```shell
-# Organization can be imported by specifying the organization Id.
 terraform import iotcentral_organization.example Id
 ```

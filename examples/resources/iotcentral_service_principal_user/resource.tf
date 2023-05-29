@@ -3,8 +3,9 @@ resource "iotcentral_organization" "example" {
   display_name = "Example"
 }
 
-resource "iotcentral_user" "example" {
-  email = "example@example.net"
+resource "iotcentral_service_principal_user" "example" {
+  object_id = "<object_id>"
+  tenant_id = "<tenant_id>"
   roles = [ 
     {
       role = "c495eb57-eb18-489e-9802-62c474e5645c",

@@ -1,0 +1,1 @@
+terraform import iotcentral_service_principal_user.example Id

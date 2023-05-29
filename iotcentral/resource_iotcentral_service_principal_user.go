@@ -14,43 +14,51 @@ import (
 
 // Ensure the implementation satisfies the expected interfaces.
 var (
-	_ resource.Resource                = &userResource{}
-	_ resource.ResourceWithConfigure   = &userResource{}
-	_ resource.ResourceWithImportState = &userResource{}
+	_ resource.Resource                = &servicePrincipalUserResource{}
+	_ resource.ResourceWithConfigure   = &servicePrincipalUserResource{}
+	_ resource.ResourceWithImportState = &servicePrincipalUserResource{}
 )
 
-// NewUserResource is a helper function to simplify the provider implementation.
-func NewUserResource() resource.Resource {
-	return &userResource{}
+// NewServicePrincipalUserResource is a helper function to simplify the provider implementation.
+func NewServicePrincipalUserResource() resource.Resource {
+	return &servicePrincipalUserResource{}
 }
 
-// userResource is the resource implementation.
-type userResource struct {
+// servicePrincipalUserResource is the resource implementation.
+type servicePrincipalUserResource struct {
 	client *iotcentral.Client
 }
 
-// userResourceModel maps user schema data.
-type userResourceModel struct {
-	ID    types.String                  `tfsdk:"id"`
-	Email types.String                  `tfsdk:"email"`
-	Roles []roleAssignmentResourceModel `tfsdk:"roles"`
+// servicePrincipalUserResourceModel maps service principal user schema data.
+type servicePrincipalUserResourceModel struct {
+	ID       types.String                  `tfsdk:"id"`
+	ObjectID types.String                  `tfsdk:"object_id"`
+	TenantID types.String                  `tfsdk:"tenant_id"`
+	Roles    []roleAssignmentResourceModel `tfsdk:"roles"`
 }
 
 // Metadata returns the resource type name.
-func (r *userResource) Metadata(_ context.Context, req resource.MetadataRequest, resp *resource.MetadataResponse) {
-	resp.TypeName = req.ProviderTypeName + "_user"
+func (r *servicePrincipalUserResource) Metadata(_ context.Context, req resource.MetadataRequest, resp *resource.MetadataResponse) {
+	resp.TypeName = req.ProviderTypeName + "_service_principal_user"
 }
 
 // Schema defines the schema for the resource.
-func (r *userResource) Schema(_ context.Context, _ resource.SchemaRequest, resp *resource.SchemaResponse) {
+func (r *servicePrincipalUserResource) Schema(_ context.Context, _ resource.SchemaRequest, resp *resource.SchemaResponse) {
 	resp.Schema = schema.Schema{
 		Attributes: map[string]schema.Attribute{
 			"id": schema.StringAttribute{
 				Description: "Unique ID of the user.",
 				Computed:    true,
 			},
-			"email": schema.StringAttribute{
-				Description: "Email address of the user.",
+			"object_id": schema.StringAttribute{
+				Description: "The AAD object ID of the service principal.",
+				Required:    true,
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.RequiresReplace(),
+				},
+			},
+			"tenant_id": schema.StringAttribute{
+				Description: "The AAD tenant ID of the service principal.",
 				Required:    true,
 				PlanModifiers: []planmodifier.String{
 					stringplanmodifier.RequiresReplace(),
@@ -77,7 +85,7 @@ func (r *userResource) Schema(_ context.Context, _ resource.SchemaRequest, resp 
 }
 
 // Configure adds the provider configured client to the resource.
-func (r *userResource) Configure(_ context.Context, req resource.ConfigureRequest, _ *resource.ConfigureResponse) {
+func (r *servicePrincipalUserResource) Configure(_ context.Context, req resource.ConfigureRequest, _ *resource.ConfigureResponse) {
 	if req.ProviderData == nil {
 		return
 	}
@@ -86,9 +94,9 @@ func (r *userResource) Configure(_ context.Context, req resource.ConfigureReques
 }
 
 // Create creates the resource and sets the initial Terraform state.
-func (r *userResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
+func (r *servicePrincipalUserResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
 	// Retrieve values from plan
-	var plan userResourceModel
+	var plan servicePrincipalUserResourceModel
 	diags := req.Plan.Get(ctx, &plan)
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
@@ -96,8 +104,9 @@ func (r *userResource) Create(ctx context.Context, req resource.CreateRequest, r
 	}
 
 	// Generate API request body from plan
-	var userRequest = iotcentral.UserRequest{
-		Email: plan.Email.ValueString(),
+	var servicePrincipalUserRequest = iotcentral.ServicePrincipalUserRequest{
+		ObjectID: plan.ObjectID.ValueString(),
+		TenantID: plan.TenantID.ValueString(),
 	}
 
 	for _, role := range plan.Roles {
@@ -109,25 +118,26 @@ func (r *userResource) Create(ctx context.Context, req resource.CreateRequest, r
 			roleToAdd.Organization = role.Organization.ValueString()
 		}
 
-		userRequest.Roles = append(userRequest.Roles, roleToAdd)
+		servicePrincipalUserRequest.Roles = append(servicePrincipalUserRequest.Roles, roleToAdd)
 	}
 
-	// Create new user
-	user, err := r.client.CreateUser(userRequest)
+	// Create new service principal user
+	servicePrincipalUser, err := r.client.CreateServicePrincipalUser(servicePrincipalUserRequest)
 	if err != nil {
 		resp.Diagnostics.AddError(
-			"Error creating user",
-			"Could not create user, unexpected error: "+err.Error(),
+			"Error creating service principal user",
+			"Could not create service principal user, unexpected error: "+err.Error(),
 		)
 		return
 	}
 
 	// Map response body to schema and populate Computed attribute values
-	plan.ID = types.StringValue(user.ID)
-	plan.Email = types.StringValue(user.Email)
+	plan.ID = types.StringValue(servicePrincipalUser.ID)
+	plan.ObjectID = types.StringValue(servicePrincipalUser.ObjectID)
+	plan.TenantID = types.StringValue(servicePrincipalUser.TenantID)
 
 	plan.Roles = []roleAssignmentResourceModel{}
-	for _, role := range user.Roles {
+	for _, role := range servicePrincipalUser.Roles {
 		var roleToAdd = roleAssignmentResourceModel{
 			Role: types.StringValue(role.Role),
 		}
@@ -148,31 +158,32 @@ func (r *userResource) Create(ctx context.Context, req resource.CreateRequest, r
 }
 
 // Read refreshes the Terraform state with the latest data.
-func (r *userResource) Read(ctx context.Context, req resource.ReadRequest, resp *resource.ReadResponse) {
+func (r *servicePrincipalUserResource) Read(ctx context.Context, req resource.ReadRequest, resp *resource.ReadResponse) {
 	// Get current state
-	var state userResourceModel
+	var state servicePrincipalUserResourceModel
 	diags := req.State.Get(ctx, &state)
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
 
-	// Get refreshed user value from IotCentral
-	user, err := r.client.GetUser(state.ID.ValueString())
+	// Get refreshed service principal user value from IotCentral
+	servicePrincipalUser, err := r.client.GetServicePrincipalUser(state.ID.ValueString())
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Error Reading IotCentral User",
-			"Could not read IotCentral user ID "+state.ID.ValueString()+": "+err.Error(),
+			"Could not read IotCentral service principal user ID "+state.ID.ValueString()+": "+err.Error(),
 		)
 		return
 	}
 
 	// Map response body to schema and populate Computed attribute values
-	state.ID = types.StringValue(user.ID)
-	state.Email = types.StringValue(user.Email)
+	state.ID = types.StringValue(servicePrincipalUser.ID)
+	state.ObjectID = types.StringValue(servicePrincipalUser.ObjectID)
+	state.TenantID = types.StringValue(servicePrincipalUser.TenantID)
 
 	state.Roles = []roleAssignmentResourceModel{}
-	for _, role := range user.Roles {
+	for _, role := range servicePrincipalUser.Roles {
 		var roleToAdd = roleAssignmentResourceModel{
 			Role: types.StringValue(role.Role),
 		}
@@ -193,9 +204,9 @@ func (r *userResource) Read(ctx context.Context, req resource.ReadRequest, resp 
 }
 
 // Update updates the resource and sets the updated Terraform state on success.
-func (r *userResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
+func (r *servicePrincipalUserResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
 	// Retrieve values from plan
-	var plan userResourceModel
+	var plan servicePrincipalUserResourceModel
 	diags := req.Plan.Get(ctx, &plan)
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
@@ -203,8 +214,9 @@ func (r *userResource) Update(ctx context.Context, req resource.UpdateRequest, r
 	}
 
 	// Generate API request body from plan
-	var userRequest = iotcentral.UserRequest{
-		Email: plan.Email.ValueString(),
+	var servicePrincipalUserRequest = iotcentral.ServicePrincipalUserRequest{
+		ObjectID: plan.ObjectID.ValueString(),
+		TenantID: plan.TenantID.ValueString(),
 	}
 
 	for _, role := range plan.Roles {
@@ -216,32 +228,33 @@ func (r *userResource) Update(ctx context.Context, req resource.UpdateRequest, r
 			roleToAdd.Organization = role.Organization.ValueString()
 		}
 
-		userRequest.Roles = append(userRequest.Roles, roleToAdd)
+		servicePrincipalUserRequest.Roles = append(servicePrincipalUserRequest.Roles, roleToAdd)
 	}
 
-	var state userResourceModel
+	var state servicePrincipalUserResourceModel
 	diags = req.State.Get(ctx, &state)
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
 
-	// Update existing user
-	user, err := r.client.UpdateUser(state.ID.ValueString(), userRequest)
+	// Update existing service principal user
+	servicePrincipalUser, err := r.client.UpdateServicePrincipalUser(state.ID.ValueString(), servicePrincipalUserRequest)
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Error Updating IotCentraL User",
-			"Could not update user, unexpected error: "+err.Error(),
+			"Could not update service principal user, unexpected error: "+err.Error(),
 		)
 		return
 	}
 
 	// Map response body to schema and populate Computed attribute values
-	plan.ID = types.StringValue(user.ID)
-	plan.Email = types.StringValue(user.Email)
+	plan.ID = types.StringValue(servicePrincipalUser.ID)
+	plan.ObjectID = types.StringValue(servicePrincipalUser.ObjectID)
+	plan.TenantID = types.StringValue(servicePrincipalUser.TenantID)
 
 	plan.Roles = []roleAssignmentResourceModel{}
-	for _, role := range user.Roles {
+	for _, role := range servicePrincipalUser.Roles {
 		var roleToAdd = roleAssignmentResourceModel{
 			Role: types.StringValue(role.Role),
 		}
@@ -261,9 +274,9 @@ func (r *userResource) Update(ctx context.Context, req resource.UpdateRequest, r
 }
 
 // Delete deletes the resource and removes the Terraform state on success.
-func (r *userResource) Delete(ctx context.Context, req resource.DeleteRequest, resp *resource.DeleteResponse) {
+func (r *servicePrincipalUserResource) Delete(ctx context.Context, req resource.DeleteRequest, resp *resource.DeleteResponse) {
 	// Retrieve values from state
-	var state userResourceModel
+	var state servicePrincipalUserResourceModel
 	diags := req.State.Get(ctx, &state)
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
@@ -275,13 +288,13 @@ func (r *userResource) Delete(ctx context.Context, req resource.DeleteRequest, r
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Error Deleting IotCentral User",
-			"Could not delete user, unexpected error: "+err.Error(),
+			"Could not delete service principal user, unexpected error: "+err.Error(),
 		)
 		return
 	}
 }
 
-func (r *userResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
+func (r *servicePrincipalUserResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
 	// Retrieve import ID and save to id attribute
 	resource.ImportStatePassthroughID(ctx, path.Root("id"), req, resp)
 }

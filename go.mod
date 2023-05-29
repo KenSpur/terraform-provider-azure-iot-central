@@ -10,7 +10,7 @@ require (
 	github.com/hashicorp/terraform-plugin-go v0.14.3
 	github.com/hashicorp/terraform-plugin-log v0.8.0
 	github.com/hashicorp/terraform-plugin-testing v1.2.0
-	github.com/kenspur/azure-iot-central-client-go v0.1.2
+	github.com/kenspur/azure-iot-central-client-go v0.1.3
 )
 
 require (

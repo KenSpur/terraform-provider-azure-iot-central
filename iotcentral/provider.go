@@ -169,5 +169,6 @@ func (p *iotcentralProvider) DataSources(_ context.Context) []func() datasource.
 func (p *iotcentralProvider) Resources(_ context.Context) []func() resource.Resource {
 	return []func() resource.Resource{
 		NewDeviceResource,
+		NewOrganizationResource,
 	}
 }

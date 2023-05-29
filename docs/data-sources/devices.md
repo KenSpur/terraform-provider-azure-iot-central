@@ -34,6 +34,7 @@ Read-Only:
 - `enabled` (Boolean) List of organization IDs that the device is a part of, only one organization is supported today, multiple organizations will be supported soon.
 - `etag` (String) ETag used to prevent conflict in device updates.
 - `id` (String) Unique ID of the device.
+- `organizations` (List of String) List of organization IDs that the device is a part of, only one organization is supported today, multiple organizations will be supported soon.
 - `provisioned` (Boolean) Whether resources have been allocated for the device.
 - `simulated` (Boolean) Whether the device is simulated.
 - `template` (String) The device template definition for the device.

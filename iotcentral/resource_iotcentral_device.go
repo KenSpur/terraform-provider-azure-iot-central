@@ -232,6 +232,10 @@ func (r *deviceResource) Update(ctx context.Context, req resource.UpdateRequest,
 		Enabled:     plan.Enabled.ValueBool(),
 	}
 
+	for _, organization := range plan.Organizations.Elements() {
+		deviceRequest.Organizations = append(deviceRequest.Organizations, organization.(types.String).ValueString())
+	}
+
 	// Update existing device
 	device, err := r.client.UpdateDevice(deviceID, deviceRequest)
 	if err != nil {
